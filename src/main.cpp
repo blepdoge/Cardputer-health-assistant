@@ -19,8 +19,8 @@ M5Canvas canvas(&M5Cardputer.Display); // Create a memory buffer for drawing
 // --- STATE MACHINE & UI ---
 int currentPage = 0;
 bool needsRedraw = true;
+uint32_t lastImuPoll = 0;
 int settingsCursor = 0;
-uint32_t lastBlinkTime = 0;
 
 // --- EDITING LOGIC ---
 bool isEditing = false;
@@ -121,6 +121,7 @@ void logDataToSD() {
 void setup() {
     auto cfg = M5.config();
     M5Cardputer.begin(cfg, true);
+    setCpuFrequencyMhz(80); // Reduce CPU frequency to 80MHz
 
     canvas.createSprite(240, 135);
     canvas.setFont(&fonts::FreeSans9pt7b);
@@ -230,7 +231,7 @@ void drawGraph() {
     int spacing = 2;
 
     // Dynamically find the maximum steps in any 20-minute interval
-    int maxStepsPerInterval = 2000; // Baseline minimum scale
+    int maxStepsPerInterval = 1800; // Baseline minimum scale
     for(int i = 0; i < 72; i++) {
         if(activityGraph[i] > maxStepsPerInterval) {
             maxStepsPerInterval = activityGraph[i];
@@ -259,6 +260,7 @@ void drawGraph() {
     canvas.drawLine(0, 116, 240, 116, WHITE);
 
     canvas.setTextDatum(top_center);
+    canvas.setTextSize(0.8);
     canvas.setTextColor(LIGHTGREY);
 
     for (int h = 0; h <= 24; h += 4) {
@@ -310,8 +312,7 @@ void drawSettings() {
         canvas.fillRect(40, 60, 160, 25, BLACK);
         canvas.setTextDatum(middle_center);
 
-        String cursorChar = ((millis() / 500) % 2 == 0) ? "_" : " ";
-        canvas.drawString(editBuffer + cursorChar, 120, 72);
+        canvas.drawString(editBuffer + "_", 120, 72);
     }
 }
 
@@ -319,16 +320,19 @@ void drawSettings() {
 void loop() {
     M5Cardputer.update();
 
-    // 1. Always poll the hardware
-    imu.getStepCount(&stepCount);
+// 1. Poll the hardware ONLY once every 2s
+    if (millis() - lastImuPoll >= 2000) {
+        imu.getStepCount(&stepCount);
+        lastImuPoll = millis();
 
-    // 2. Did we take a step?
-    if (stepCount != lastStepCount) {
-        updateMetrics();
-        lastStepCount = stepCount;
+        // 2. Did we take a step?
+        if (stepCount != lastStepCount) {
+            updateMetrics();
+            lastStepCount = stepCount;
 
-        if (isScreenOn && currentPage == 0) {
-            needsRedraw = true;
+            if (isScreenOn && currentPage == 0) {
+                needsRedraw = true;
+            }
         }
     }
 
@@ -412,12 +416,6 @@ void loop() {
         isEditing = false;
     }
 
-    // 6. Blinking Cursor Timer
-    if (isEditing && isScreenOn && (millis() - lastBlinkTime >= 500)) {
-        needsRedraw = true;
-        lastBlinkTime = millis();
-    }
-
     // --- RENDER SCREEN FROM MEMORY ---
     if (needsRedraw && isScreenOn) {
         canvas.clear();
@@ -429,4 +427,6 @@ void loop() {
         canvas.pushSprite(0, 0);
         needsRedraw = false;
     }
+    delay(50); //small delay to rest the cpu a bit. he deserves sleepy time
+
 }
