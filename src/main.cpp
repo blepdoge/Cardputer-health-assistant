@@ -4,6 +4,7 @@
 #include <Wire.h>
 #include "SparkFun_BMI270_Arduino_Library.h"
 #include <SD.h>
+#include <SPI.h>
 
 BMI270 imu;
 
@@ -38,6 +39,7 @@ bool isScreenOn = true;
 const uint32_t SCREEN_TIMEOUT = 30000; // 30 seconds in milliseconds
 
 // --- SD LOGGING ---
+bool sdReady = false; // Flag to prevent crashes if no SD card is inserted
 uint32_t lastLogTime = 0;
 uint32_t stepsAtLastLog = 0;
 const uint32_t LOG_INTERVAL = 1200000; // 20 minutes in milliseconds
@@ -62,6 +64,8 @@ void updateMetrics() {
 
 // --- SD CARD SETTINGS LOGIC ---
 void saveSettings() {
+    if (!sdReady) return; // Abort silently if no SD card
+
     File file = SD.open("/m5_health/settings.txt", FILE_WRITE);
     if (file) {
         file.printf("goal=%d\n", dailyGoal);
@@ -72,10 +76,12 @@ void saveSettings() {
 }
 
 void loadSettings() {
+    if (!sdReady) return; // Abort silently if no SD card
+
     if (!SD.exists("/m5_health")) SD.mkdir("/m5_health");
 
     if (!SD.exists("/m5_health/settings.txt")) {
-        saveSettings();
+        saveSettings(); // File doesn't exist, create it with defaults
         return;
     }
 
@@ -94,6 +100,8 @@ void loadSettings() {
 }
 
 void logDataToSD() {
+    if (!sdReady) return; // Abort silently if no SD card
+
     uint32_t stepDelta = stepCount - stepsAtLastLog;
 
     File file = SD.open("/m5_health/data.csv", FILE_APPEND);
@@ -129,18 +137,26 @@ void setup() {
 
     imu.enableFeature(BMI2_STEP_COUNTER);
 
-    // Initial setup of SD Card files and folders
-    if (!SD.exists("/m5_health")) {
-        SD.mkdir("/m5_health");
-        File file = SD.open("/m5_health/data.csv", FILE_WRITE);
-        if (file) {
-            file.println("Time,StepDelta");
-            file.close();
+    // --- MANUAL SD CARD INITIALIZATION ---
+    SPI.begin(40, 39, 14, 12); // SCK, MISO, MOSI, CS (Cardputer exact pins)
+
+    // Initialize SD at 25MHz for maximum stability on the Cardputer bus
+    if (SD.begin(12, SPI, 25000000)) {
+        sdReady = true;
+
+        if (!SD.exists("/m5_health")) {
+            SD.mkdir("/m5_health");
+            File file = SD.open("/m5_health/data.csv", FILE_WRITE);
+            if (file) {
+                file.println("Time,StepDelta");
+                file.close();
+            }
         }
+
+        // Load settings from SD on boot
+        loadSettings();
     }
 
-    // Load settings from SD on boot
-    loadSettings();
     updateMetrics();
 
     // Reset interaction timer so screen doesn't instantly die on boot
