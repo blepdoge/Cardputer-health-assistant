@@ -62,8 +62,6 @@ void updateMetrics() {
 
 // --- SD CARD SETTINGS LOGIC ---
 void saveSettings() {
-    if (!SD.begin()) return;
-
     File file = SD.open("/m5_health/settings.txt", FILE_WRITE);
     if (file) {
         file.printf("goal=%d\n", dailyGoal);
@@ -74,8 +72,6 @@ void saveSettings() {
 }
 
 void loadSettings() {
-    if (!SD.begin()) return;
-
     if (!SD.exists("/m5_health")) SD.mkdir("/m5_health");
 
     if (!SD.exists("/m5_health/settings.txt")) {
@@ -98,8 +94,6 @@ void loadSettings() {
 }
 
 void logDataToSD() {
-    if (!SD.begin()) return;
-
     uint32_t stepDelta = stepCount - stepsAtLastLog;
 
     File file = SD.open("/m5_health/data.csv", FILE_APPEND);
@@ -136,20 +130,21 @@ void setup() {
     imu.enableFeature(BMI2_STEP_COUNTER);
 
     // Initial setup of SD Card files and folders
-    if (SD.begin()) {
-        if (!SD.exists("/m5_health")) {
-            SD.mkdir("/m5_health");
-            File file = SD.open("/m5_health/data.csv", FILE_WRITE);
-            if (file) {
-                file.println("Time,StepDelta");
-                file.close();
-            }
+    if (!SD.exists("/m5_health")) {
+        SD.mkdir("/m5_health");
+        File file = SD.open("/m5_health/data.csv", FILE_WRITE);
+        if (file) {
+            file.println("Time,StepDelta");
+            file.close();
         }
     }
 
     // Load settings from SD on boot
     loadSettings();
     updateMetrics();
+
+    // Reset interaction timer so screen doesn't instantly die on boot
+    lastInteractionTime = millis();
 }
 
 // --- UNIVERSAL STATUS BAR ---
@@ -204,7 +199,7 @@ void drawDashboard() {
 
 // --- PAGE 1: GRAPH ---
 void drawGraph() {
-    drawStatusBar("Daily activity )");
+    drawStatusBar("Daily activity");
 
     int graphX = 12; // Center the 216px wide graph on the 240px screen
     int graphY = 115;
@@ -312,7 +307,7 @@ void loop() {
             lastInteractionTime = millis();
 
             if (!isScreenOn) {
-                M5Cardputer.Display.setBrightness(100);
+                M5Cardputer.Display.setBrightness(128); // Force brightness back up
                 isScreenOn = true;
                 needsRedraw = true;
                 return;
