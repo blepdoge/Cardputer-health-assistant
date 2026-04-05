@@ -109,6 +109,7 @@ void setup() {
     M5Cardputer.begin(cfg, true);
 
     canvas.createSprite(240, 135);
+    canvas.setFont(&fonts::FreeSans9pt7b);
 
     M5Cardputer.Display.setTextDatum(middle_center);
     M5Cardputer.Display.drawString("Booting IMU...", 120, 67);
@@ -169,11 +170,14 @@ void drawStatusBar(String title) {
 void drawDashboard() {
     drawStatusBar("Dashboard");
 
-    canvas.setTextSize(4);
+    canvas.setFont(&fonts::Orbitron_Light_32);
+    canvas.setTextSize(1);
     canvas.setTextDatum(middle_center);
     canvas.setTextColor(WHITE);
     canvas.drawString(String(stepCount), 120, 45);
 
+    // Switch back to FreeSans font for the rest of the screen
+    canvas.setFont(&fonts::FreeSans9pt7b);
     canvas.setTextSize(1);
     canvas.setTextColor(ACCENT_COLOR);
     canvas.drawString("STEPS", 120, 70);
@@ -254,10 +258,10 @@ void drawSettings() {
     canvas.setTextDatum(middle_left);
 
     for (int i = 0; i < 4; i++) {
-        int yPos = 40 + (i * 22);
+        int yPos = 40 + (i * 25);
 
         if (i == settingsCursor) {
-            canvas.fillRect(5, yPos - 10, 230, 20, ACCENT_COLOR);
+            canvas.fillRect(5, yPos - 12, 230, 24, ACCENT_COLOR);
             canvas.setTextColor(WHITE, ACCENT_COLOR);
         } else {
             canvas.setTextColor(LIGHTGREY, BLACK);
