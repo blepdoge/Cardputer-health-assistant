@@ -42,18 +42,7 @@ const uint32_t SCREEN_TIMEOUT = 30000; // 30 seconds in milliseconds
 bool sdReady = false; // Flag to prevent crashes if no SD card is inserted
 uint32_t lastLogTime = 0;
 uint32_t stepsAtLastLog = 0;
-const uint32_t LOG_INTERVAL = 1200000; // 20 minutes in milliseconds
-
-// 72 Data points (24 hours * 3 points per hour)
-int activityGraph[72] = {
-  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // Midnight to 6 AM
-  50, 100, 200, 150, 300, 400, 500, 200, 100, // 6 AM to 9 AM
-  0, 0, 50, 0, 0, 20, 10, 0, 0,        // 9 AM to 12 PM
-  200, 300, 250, 100, 50, 0, 0, 0, 0,  // 12 PM to 3 PM
-  0, 0, 0, 0, 0, 0, 0, 0, 0,           // 3 PM to 6 PM
-  400, 600, 800, 1200, 500, 100, 0, 0, 0, // 6 PM to 9 PM
-  0, 0, 0, 0, 0, 0, 0, 0, 0            // 9 PM to Midnight
-};
+const uint32_t LOG_INTERVAL = 1200000; // 20 minutes
 
 // --- HELPER: RECALCULATE METRICS ---
 void updateMetrics() {
@@ -138,7 +127,7 @@ void setup() {
     imu.enableFeature(BMI2_STEP_COUNTER);
 
     // --- MANUAL SD CARD INITIALIZATION ---
-    SPI.begin(40, 39, 14, 12); // SCK, MISO, MOSI, CS (Cardputer exact pins)
+    SPI.begin(40, 39, 14, 12); // SCK, MISO, MOSI, CS (CardputerADV exact pins)
 
     // Initialize SD at 25MHz for maximum stability on the Cardputer bus
     if (SD.begin(12, SPI, 25000000)) {
