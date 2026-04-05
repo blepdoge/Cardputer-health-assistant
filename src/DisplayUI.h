@@ -4,3 +4,4 @@
 void drawDashboard();
 void drawGraph();
 void drawSettings();
+void drawWiFiScanner();

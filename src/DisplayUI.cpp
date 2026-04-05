@@ -114,3 +114,57 @@ void drawSettings() {
         canvas.drawString(editBuffer + "_", 120, 72);
     }
 }
+
+void drawWiFiScanner() {
+    drawStatusBar("Wi-Fi Setup");
+
+    // 1. Show Scanning message
+    if (isScanningWiFi) {
+        canvas.setTextDatum(middle_center);
+        canvas.setTextColor(WHITE);
+        canvas.drawString("Scanning networks...", 120, 67);
+        return;
+    }
+
+    // 2. Show Password Prompt
+    if (isEnteringWiFiPassword) {
+        canvas.fillRect(20, 30, 200, 75, DARKGREY);
+        canvas.drawRect(20, 30, 200, 75, WHITE);
+        canvas.setTextColor(WHITE, DARKGREY);
+        canvas.setTextDatum(top_center);
+        canvas.drawString("Password for:", 120, 35);
+        canvas.drawString(networkSSIDs[selectedNetworkIndex], 120, 50);
+
+        canvas.fillRect(30, 75, 180, 20, BLACK);
+        canvas.setTextDatum(middle_center);
+        canvas.drawString(wifiPasswordBuffer + "_", 120, 85);
+        return;
+    }
+
+    // 3. Show Scrollable Network List
+    canvas.setTextSize(1);
+    canvas.setTextDatum(middle_left);
+    if (networkCount == 0) {
+        canvas.drawString("No networks found.", 10, 50);
+        return;
+    }
+
+    // Math to show 4 items on the screen at a time
+    int startIdx = (wifiCursor / 4) * 4;
+    for (int i = 0; i < 4; i++) {
+        int netIdx = startIdx + i;
+        if (netIdx >= networkCount) break;
+
+        int yPos = 40 + (i * 25);
+        if (netIdx == wifiCursor) {
+            canvas.fillRect(5, yPos - 12, 230, 24, ACCENT_COLOR);
+            canvas.setTextColor(WHITE, ACCENT_COLOR);
+        } else {
+            canvas.setTextColor(LIGHTGREY, BLACK);
+        }
+
+        String dispSSID = networkSSIDs[netIdx];
+        if (dispSSID.length() > 20) dispSSID = dispSSID.substring(0, 17) + "...";
+        canvas.drawString(" " + dispSSID, 10, yPos);
+    }
+}

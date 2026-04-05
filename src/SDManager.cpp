@@ -60,3 +60,34 @@ void logDataToSD() {
     }
     stepsAtLastLog = stepCount;
 }
+
+String getSavedWiFiPassword(String ssid) {
+    if (!sdReady || !SD.exists("/m5_health/networks.txt")) return "";
+
+    File file = SD.open("/m5_health/networks.txt", FILE_READ);
+    if (file) {
+        while (file.available()) {
+            String line = file.readStringUntil('\n');
+            line.trim();
+            int commaIndex = line.indexOf(',');
+            if (commaIndex != -1) {
+                String savedSSID = line.substring(0, commaIndex);
+                if (savedSSID == ssid) {
+                    file.close();
+                    return line.substring(commaIndex + 1); // Return the password
+                }
+            }
+        }
+        file.close();
+    }
+    return "";
+}
+
+void saveWiFiNetwork(String ssid, String password) {
+    if (!sdReady) return;
+    File file = SD.open("/m5_health/networks.txt", FILE_APPEND);
+    if (file) {
+        file.printf("%s,%s\n", ssid.c_str(), password.c_str());
+        file.close();
+    }
+}

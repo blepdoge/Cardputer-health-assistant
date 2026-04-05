@@ -1,4 +1,5 @@
 #include "AppState.h"
+#include "WebSync.h"
 #include "SDManager.h"
 #include "DisplayUI.h"
 
@@ -17,6 +18,15 @@ bool needsRedraw = true;
 int settingsCursor = 0;
 bool isEditing = false;
 String editBuffer = "";
+
+// Wi-Fi Variables
+bool isScanningWiFi = false;
+int wifiCursor = 0;
+int selectedNetworkIndex = -1;
+String wifiPasswordBuffer = "";
+bool isEnteringWiFiPassword = false;
+int networkCount = 0;
+String networkSSIDs[15];
 
 uint32_t stepCount = 0;
 uint32_t lastStepCount = 0;
@@ -76,80 +86,175 @@ void setup() {
     lastInteractionTime = millis();
 }
 
+// --- MAIN LOOP ---
 void loop() {
     M5Cardputer.update();
 
+    // 1. Poll the hardware ONLY once every 2s
     if (millis() - lastImuPoll >= 2000) {
         imu.getStepCount(&stepCount);
         lastImuPoll = millis();
+
+        // 2. Did we take a step?
         if (stepCount != lastStepCount) {
             updateMetrics();
             lastStepCount = stepCount;
-            if (isScreenOn && currentPage == 0) needsRedraw = true;
+
+            if (isScreenOn && currentPage == 0) {
+                needsRedraw = true;
+            }
         }
     }
 
+    // 3. 20-Minute CSV Data Logging Timer
     if (millis() - lastLogTime >= LOG_INTERVAL) {
         logDataToSD();
         lastLogTime = millis();
     }
 
+    // 4. Handle Keyboard & Screen Wakeup
     if (M5Cardputer.Keyboard.isChange()) {
         if (M5Cardputer.Keyboard.isPressed()) {
             Keyboard_Class::KeysState status = M5Cardputer.Keyboard.keysState();
+
             lastInteractionTime = millis();
 
             if (!isScreenOn) {
-                M5Cardputer.Display.setBrightness(128);
+                M5Cardputer.Display.setBrightness(128); // Force brightness back up
                 isScreenOn = true;
                 needsRedraw = true;
-            } else if (isEditing) {
-                if (status.del && editBuffer.length() > 0) editBuffer.remove(editBuffer.length() - 1);
+            }
+            else if (isEditing) {
+                // --- SETTINGS EDITING LOGIC ---
+                if (status.del && editBuffer.length() > 0) {
+                    editBuffer.remove(editBuffer.length() - 1);
+                }
                 else if (status.enter) {
                     if (settingsCursor == 0) dailyGoal = editBuffer.toInt();
                     else if (settingsCursor == 1) heightCm = editBuffer.toFloat();
                     else if (settingsCursor == 2) weightKg = editBuffer.toFloat();
+
                     isEditing = false;
                     updateMetrics();
-                    saveSettings();
-                } else {
+                    saveSettings(); // Save to SD Card!
+                }
+                else {
                     for (auto key : status.word) {
                         if (isDigit(key) || key == '.') editBuffer += key;
                     }
                 }
                 needsRedraw = true;
-            } else {
-                for (auto key : status.word) {
-                    if (key == '/') currentPage = (currentPage + 1) % 3;
-                    if (key == ',') currentPage = (currentPage == 0) ? 2 : currentPage - 1;
-                    if (currentPage == 2) {
-                        if (key == '.') settingsCursor = (settingsCursor + 1) % 4;
-                        if (key == ';') settingsCursor = (settingsCursor == 0) ? 3 : settingsCursor - 1;
+            }
+            else if (currentPage == 3) {
+                // --- WI-FI MENU LOGIC ---
+                if (isEnteringWiFiPassword) {
+                    if (status.del && wifiPasswordBuffer.length() > 0) {
+                        wifiPasswordBuffer.remove(wifiPasswordBuffer.length() - 1);
+                    }
+                    else if (status.enter) {
+                        isEnteringWiFiPassword = false;
+                        saveWiFiNetwork(networkSSIDs[selectedNetworkIndex], wifiPasswordBuffer);
+                        // For Phase 1: Go back to dashboard to prove we captured it
+                        currentPage = 0;
+                    }
+                    else {
+                        for (auto key : status.word) wifiPasswordBuffer += key;
+                    }
+                    needsRedraw = true;
+                } else {
+                    for (auto key : status.word) {
+                        if (key == ',') { currentPage = 2; needsRedraw = true; } // Back to settings
+                        if (key == '.') { wifiCursor = (wifiCursor + 1) % networkCount; needsRedraw = true; }
+                        if (key == ';') { wifiCursor = (wifiCursor == 0) ? networkCount - 1 : wifiCursor - 1; needsRedraw = true; }
+                    }
+                    if (status.enter && networkCount > 0) {
+                        selectedNetworkIndex = wifiCursor;
+                        String savedPw = getSavedWiFiPassword(networkSSIDs[selectedNetworkIndex]);
+
+                        if (savedPw != "") {
+                            // Password found! Phase 1: just go to dashboard
+                            currentPage = 0;
+                        } else {
+                            // Password not found, open prompt
+                            isEnteringWiFiPassword = true;
+                            wifiPasswordBuffer = "";
+                        }
+                        needsRedraw = true;
                     }
                 }
-                needsRedraw = true;
-                if (status.enter && currentPage == 2 && settingsCursor < 3) {
-                    isEditing = true;
-                    editBuffer = "";
+            }
+            else {
+                // --- NORMAL UI NAVIGATION (Pages 0, 1, 2) ---
+                for (auto key : status.word) {
+                    if (key == '/') {
+                        currentPage = (currentPage + 1) % 3;
+                        needsRedraw = true;
+                    }
+                    if (key == ',') {
+                        currentPage = (currentPage == 0) ? 2 : currentPage - 1;
+                        needsRedraw = true;
+                    }
+                    if (currentPage == 2) {
+                        if (key == '.') {
+                            settingsCursor = (settingsCursor + 1) % 4;
+                            needsRedraw = true;
+                        }
+                        if (key == ';') {
+                            settingsCursor = (settingsCursor == 0) ? 3 : settingsCursor - 1;
+                            needsRedraw = true;
+                        }
+                    }
+                }
+
+                if (status.enter && currentPage == 2) {
+                    if (settingsCursor < 3) {
+                        isEditing = true;
+                        editBuffer = "";
+                        needsRedraw = true;
+                    } else if (settingsCursor == 3) {
+                        // Start WebUI clicked!
+                        currentPage = 3;
+                        isScanningWiFi = true;
+                        needsRedraw = true;
+                    }
                 }
             }
         }
     }
 
+    // 5. SCREEN TIMEOUT CHECK
     if (isScreenOn && (millis() - lastInteractionTime > SCREEN_TIMEOUT)) {
         M5Cardputer.Display.setBrightness(0);
         isScreenOn = false;
         isEditing = false;
+        isEnteringWiFiPassword = false; // Safety reset just in case
     }
 
-    if (needsRedraw && isScreenOn) {
+    // --- SPECIAL HOOK: FORCE DRAW BEFORE SCANNING ---
+    if (currentPage == 3 && isScanningWiFi) {
         canvas.clear();
+        drawWiFiScanner(); // Draws "Scanning..."
+        canvas.pushSprite(0, 0);
+
+        scanWiFiNetworks(); // Blocks the CPU for 2 seconds to scan
+
+        isScanningWiFi = false;
+        wifiCursor = 0;
+        needsRedraw = true;
+    }
+
+    // --- RENDER SCREEN FROM MEMORY ---
+    if (needsRedraw && isScreenOn && !isScanningWiFi) {
+        canvas.clear();
+
         if (currentPage == 0) drawDashboard();
         else if (currentPage == 1) drawGraph();
         else if (currentPage == 2) drawSettings();
+        else if (currentPage == 3) drawWiFiScanner();
+
         canvas.pushSprite(0, 0);
         needsRedraw = false;
     }
 
-    delay(50); // The sleepy time is now outside the keyboard block!
+    delay(50); //sleepy time for cpu
 }
