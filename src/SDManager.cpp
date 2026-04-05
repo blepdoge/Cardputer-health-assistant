@@ -2,6 +2,7 @@
 #include "AppState.h"
 #include <SD.h>
 #include <SPI.h>
+#include <time.h>
 
 void setupSD() {
     SPI.begin(40, 39, 14, 12); // SCK, MISO, MOSI, CS
@@ -52,9 +53,19 @@ void loadSettings() {
 void logDataToSD() {
     if (!sdReady) return;
     uint32_t stepDelta = stepCount - stepsAtLastLog;
+
+    struct tm timeinfo;
+    String timeString = "00:00";
+
+    // If the clock has been synced, grab the real hours and minutes!
+    if (getLocalTime(&timeinfo)) {
+        char timeStr[10];
+        strftime(timeStr, sizeof(timeStr), "%H:%M", &timeinfo);
+        timeString = String(timeStr);
+    }
+
     File file = SD.open("/m5_health/data.csv", FILE_APPEND);
     if (file) {
-        String timeString = "14:20"; // Placeholder until NTP
         file.printf("%s,%d\n", timeString.c_str(), stepDelta);
         file.close();
     }

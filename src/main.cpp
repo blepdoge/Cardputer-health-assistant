@@ -2,6 +2,7 @@
 #include "WebSync.h"
 #include "SDManager.h"
 #include "DisplayUI.h"
+#include <WiFi.h>
 
 // --- VARIABLE INSTANTIATION ---
 BMI270 imu;
@@ -26,6 +27,8 @@ int selectedNetworkIndex = -1;
 String wifiPasswordBuffer = "";
 bool isEnteringWiFiPassword = false;
 int networkCount = 0;
+bool isConnectingWiFi = false;
+bool isSyncingNTP = false;
 String networkSSIDs[15];
 
 uint32_t stepCount = 0;
@@ -154,8 +157,8 @@ void loop() {
                     else if (status.enter) {
                         isEnteringWiFiPassword = false;
                         saveWiFiNetwork(networkSSIDs[selectedNetworkIndex], wifiPasswordBuffer);
-                        // For Phase 1: Go back to dashboard to prove we captured it
-                        currentPage = 0;
+                        // Password found! Start connecting.
+                        isConnectingWiFi = true;
                     }
                     else {
                         for (auto key : status.word) wifiPasswordBuffer += key;
@@ -172,8 +175,9 @@ void loop() {
                         String savedPw = getSavedWiFiPassword(networkSSIDs[selectedNetworkIndex]);
 
                         if (savedPw != "") {
-                            // Password found! Phase 1: just go to dashboard
-                            currentPage = 0;
+                            // Password found! Start connecting.
+                            wifiPasswordBuffer = savedPw;
+                            isConnectingWiFi = true;
                         } else {
                             // Password not found, open prompt
                             isEnteringWiFiPassword = true;
@@ -240,6 +244,43 @@ void loop() {
 
         isScanningWiFi = false;
         wifiCursor = 0;
+        needsRedraw = true;
+    }
+
+    // --- SPECIAL HOOK: FORCE DRAW BEFORE CONNECTING & NTP ---
+    if (currentPage == 3 && isConnectingWiFi) {
+        canvas.clear();
+        drawWiFiScanner(); // Draws "Connecting to Wi-Fi..."
+        canvas.pushSprite(0, 0);
+
+        setCpuFrequencyMhz(240); // 🚀 Boost CPU for Wi-Fi!
+
+        bool connected = connectToWiFi(networkSSIDs[selectedNetworkIndex], wifiPasswordBuffer);
+
+        if (connected) {
+            isConnectingWiFi = false;
+            isSyncingNTP = true;
+
+            canvas.clear();
+            drawWiFiScanner(); // Draws "Syncing Time..."
+            canvas.pushSprite(0, 0);
+
+            syncNTP(); // Reach out to the time servers
+
+            // For Phase 2: Shut down Wi-Fi, drop CPU, and return to Dashboard
+            WiFi.disconnect(true);
+            WiFi.mode(WIFI_OFF);
+            setCpuFrequencyMhz(80);
+
+            isSyncingNTP = false;
+            currentPage = 0;
+        } else {
+            // Connection failed! Go back to password prompt.
+            setCpuFrequencyMhz(80);
+            isConnectingWiFi = false;
+            isEnteringWiFiPassword = true;
+            wifiPasswordBuffer = "";
+        }
         needsRedraw = true;
     }
 

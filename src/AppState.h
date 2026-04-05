@@ -49,6 +49,8 @@ extern String wifiPasswordBuffer;
 extern bool isEnteringWiFiPassword;
 extern int networkCount;
 extern String networkSSIDs[15]; // Store up to 15 networks
+extern bool isConnectingWiFi;
+extern bool isSyncingNTP;
 
 // Shared Functions
 void updateMetrics();

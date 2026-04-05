@@ -117,8 +117,25 @@ void drawSettings() {
 
 void drawWiFiScanner() {
     drawStatusBar("Wi-Fi Setup");
+    // 1. Show Connection message
+    if (isConnectingWiFi) {
+        canvas.setTextDatum(middle_center);
+        canvas.setTextColor(WHITE);
+        canvas.drawString("Connecting to Wi-Fi...", 120, 50);
+        canvas.setTextColor(ACCENT_COLOR);
+        canvas.drawString(networkSSIDs[selectedNetworkIndex], 120, 70);
+        return;
+    }
 
-    // 1. Show Scanning message
+    // 2. Show Syncing message
+    if (isSyncingNTP) {
+        canvas.setTextDatum(middle_center);
+        canvas.setTextColor(GOLDEN_YELLOW);
+        canvas.drawString("Syncing Time (NTP)...", 120, 67);
+        return;
+    }
+
+    // 3. Show Scanning message
     if (isScanningWiFi) {
         canvas.setTextDatum(middle_center);
         canvas.setTextColor(WHITE);
@@ -126,7 +143,7 @@ void drawWiFiScanner() {
         return;
     }
 
-    // 2. Show Password Prompt
+    // 4. Show Password Prompt
     if (isEnteringWiFiPassword) {
         canvas.fillRect(20, 30, 200, 75, DARKGREY);
         canvas.drawRect(20, 30, 200, 75, WHITE);
@@ -141,7 +158,7 @@ void drawWiFiScanner() {
         return;
     }
 
-    // 3. Show Scrollable Network List
+    // 5. Show Scrollable Network List
     canvas.setTextSize(1);
     canvas.setTextDatum(middle_left);
     if (networkCount == 0) {
