@@ -32,6 +32,17 @@ uint32_t lastStepCount = 0;
 float distanceKm = 0.0;
 float caloriesBurned = 0.0;
 
+// 72 Data points (24 hours * 3 points per hour)
+int activityGraph[72] = {
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // Midnight to 6 AM
+  50, 100, 200, 150, 300, 400, 500, 200, 100, // 6 AM to 9 AM
+  0, 0, 50, 0, 0, 20, 10, 0, 0,        // 9 AM to 12 PM
+  200, 300, 250, 100, 50, 0, 0, 0, 0,  // 12 PM to 3 PM
+  0, 0, 0, 0, 0, 0, 0, 0, 0,           // 3 PM to 6 PM
+  400, 600, 800, 1600, 500, 100, 0, 0, 0, // 6 PM to 9 PM
+  0, 0, 0, 0, 0, 0, 0, 0, 0            // 9 PM to Midnight
+};
+
 float weightKg = 70.0;
 float heightCm = 175.0;
 int dailyGoal = 10000;
@@ -227,22 +238,22 @@ void drawGraph() {
     }
 
     for(int i = 0; i < 72; i++) {
-            int barHeight = map(activityGraph[i], 0, maxStepsPerInterval, 0, 80);
-            if(barHeight < 0) barHeight = 0;
-            if(barHeight > 80) barHeight = 80;
+        int barHeight = map(activityGraph[i], 0, maxStepsPerInterval, 0, 80);
+        if(barHeight < 0) barHeight = 0;
+        if(barHeight > 80) barHeight = 80;
 
-            // Apply absolute threshold colors based on activity intensity
-            uint16_t color;
-            if (activityGraph[i] >= 1500) {
-                color = ALERT_RED;       // High intensity
-            } else if (activityGraph[i] >= 500) {
-                color = SMOOTH_ORANGE;   // Moderate intensity
-            } else {
-                color = GOLDEN_YELLOW;   // Low intensity
-            }
-
-            canvas.fillRect(graphX + (i * spacing), graphY - barHeight, barWidth, barHeight, color);
+        // Apply absolute threshold colors based on activity intensity
+        uint16_t color;
+        if (activityGraph[i] >= 1500) {
+            color = ALERT_RED;       // High intensity
+        } else if (activityGraph[i] >= 500) {
+            color = SMOOTH_ORANGE;   // Moderate intensity
+        } else {
+            color = GOLDEN_YELLOW;   // Low intensity
         }
+
+        canvas.fillRect(graphX + (i * spacing), graphY - barHeight, barWidth, barHeight, color);
+    }
 
     // Draw the main baseline
     canvas.drawLine(0, 116, 240, 116, WHITE);
