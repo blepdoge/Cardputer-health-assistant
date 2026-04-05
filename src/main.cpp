@@ -10,7 +10,10 @@ BMI270 imu;
 
 // --- THEME & SPRITE ---
 uint16_t ACCENT_COLOR = M5.Display.color565(0, 150, 136);
-uint16_t PASTEL_GREEN = M5.Display.color565(170, 230, 170); // Pastel Green
+uint16_t PASTEL_GREEN = M5.Display.color565(170, 230, 170);
+uint16_t GOLDEN_YELLOW = M5.Display.color565(255, 215, 0);
+uint16_t SMOOTH_ORANGE = M5.Display.color565(255, 140, 0);
+uint16_t ALERT_RED = M5.Display.color565(220, 50, 50);
 M5Canvas canvas(&M5Cardputer.Display); // Create a memory buffer for drawing
 
 // --- STATE MACHINE & UI ---
@@ -224,23 +227,39 @@ void drawGraph() {
     }
 
     for(int i = 0; i < 72; i++) {
-        int barHeight = map(activityGraph[i], 0, maxStepsPerInterval, 0, 80);
-        if(barHeight < 0) barHeight = 0;
-        if(barHeight > 80) barHeight = 80;
+            int barHeight = map(activityGraph[i], 0, maxStepsPerInterval, 0, 80);
+            if(barHeight < 0) barHeight = 0;
+            if(barHeight > 80) barHeight = 80;
 
-        uint16_t color = ACCENT_COLOR;
-        // Highlight top 25% of activity in yellow
-        if(activityGraph[i] > (maxStepsPerInterval * 0.75) && activityGraph[i] > 100) color = YELLOW;
+            // Apply absolute threshold colors based on activity intensity
+            uint16_t color;
+            if (activityGraph[i] >= 1500) {
+                color = ALERT_RED;       // High intensity
+            } else if (activityGraph[i] >= 500) {
+                color = SMOOTH_ORANGE;   // Moderate intensity
+            } else {
+                color = GOLDEN_YELLOW;   // Low intensity
+            }
 
-        canvas.fillRect(graphX + (i * spacing), graphY - barHeight, barWidth, barHeight, color);
-    }
+            canvas.fillRect(graphX + (i * spacing), graphY - barHeight, barWidth, barHeight, color);
+        }
 
+    // Draw the main baseline
     canvas.drawLine(0, 116, 240, 116, WHITE);
-    canvas.setTextDatum(top_left);
+
+    canvas.setTextDatum(top_center);
     canvas.setTextColor(LIGHTGREY);
-    canvas.drawString("0h", 5, 120);
-    canvas.setTextDatum(top_right);
-    canvas.drawString("24h", 235, 120);
+
+    for (int h = 0; h <= 24; h += 4) {
+        // graphX is 12. Each hour is 9 pixels wide (216px total / 24h = 9px)
+        int xPos = 12 + (h * 9);
+
+        // Draw a tiny 2-pixel tick mark dropping down from the main line
+        canvas.drawLine(xPos, 116, xPos, 118, WHITE);
+
+        // Draw the hour label right below the tick mark
+        canvas.drawString(String(h) + "h", xPos, 120);
+    }
 }
 
 // --- PAGE 2: SETTINGS ---
