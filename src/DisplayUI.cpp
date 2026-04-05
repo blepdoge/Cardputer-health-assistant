@@ -2,10 +2,15 @@
 #include "AppState.h"
 
 void drawStatusBar(String title) {
+    canvas.setFont(&fonts::FreeSans9pt7b);
+    canvas.setTextSize(1.0);
+
     canvas.fillRect(0, 0, 240, 20, PASTEL_GREEN);
+
     canvas.setTextColor(BLACK, PASTEL_GREEN);
     canvas.setTextDatum(middle_left);
     canvas.drawString(" " + title, 0, 10);
+
     int batLevel = M5.Power.getBatteryLevel();
     canvas.setTextDatum(middle_right);
     canvas.drawString(String(batLevel) + "% ", 240, 10);
