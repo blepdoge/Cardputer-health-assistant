@@ -29,6 +29,7 @@ bool isEnteringWiFiPassword = false;
 int networkCount = 0;
 bool isConnectingWiFi = false;
 bool isSyncingNTP = false;
+bool isWebUIRunning = false;
 String networkSSIDs[15];
 
 uint32_t stepCount = 0;
@@ -93,6 +94,9 @@ void setup() {
 // --- MAIN LOOP ---
 void loop() {
     M5Cardputer.update();
+    if (isWebUIRunning) {
+            handleWebUI();
+        }
 
     // 1. Poll the hardware ONLY once every 2s
     if (millis() - lastImuPoll >= 2000) {
@@ -122,6 +126,17 @@ void loop() {
             Keyboard_Class::KeysState status = M5Cardputer.Keyboard.keysState();
 
             lastInteractionTime = millis();
+            if (isWebUIRunning) {
+                // Intercept keyboard entirely if WebUI is live
+                if (status.del) { // Backspace key
+                    stopWebUI_Server();
+                    setCpuFrequencyMhz(80); // Drop CPU back down to save battery
+                    isWebUIRunning = false;
+                    currentPage = 0; // Go back to Dashboard
+                    needsRedraw = true;
+                }
+                return; // Stop processing other keys
+            }
 
             if (!isScreenOn) {
                 M5Cardputer.Display.setBrightness(128); // Force brightness back up
@@ -269,13 +284,9 @@ void loop() {
 
             syncNTP(); // Reach out to the time servers
 
-            // For Phase 2: Shut down Wi-Fi, drop CPU, and return to Dashboard
-            WiFi.disconnect(true);
-            WiFi.mode(WIFI_OFF);
-            setCpuFrequencyMhz(80);
-
             isSyncingNTP = false;
-            currentPage = 0;
+            isWebUIRunning = true;
+            startWebUI_Server();
         } else {
             // Connection failed! Go back to password prompt.
             setCpuFrequencyMhz(80);

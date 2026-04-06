@@ -53,6 +53,7 @@ extern bool isConnectingWiFi;
 extern bool isSyncingNTP;
 
 extern int timezoneOffset;
+extern bool isWebUIRunning;
 
 // Shared Functions
 void updateMetrics();

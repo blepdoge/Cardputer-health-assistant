@@ -2,6 +2,10 @@
 #include "AppState.h"
 #include <WiFi.h>
 #include <time.h>
+#include <WebServer.h>
+#include <ESPmDNS.h>
+
+WebServer server(80);
 
 void scanWiFiNetworks() {
     WiFi.mode(WIFI_STA);
@@ -36,4 +40,31 @@ void syncNTP() {
         delay(500);
         retry++;
     }
+}
+
+void startWebUI_Server() {
+    // 1. Start the mDNS responder for "cardputer.local"
+    if (!MDNS.begin("cardputer")) {
+        Serial.println("Error setting up MDNS responder!");
+    }
+
+    // 2. Define what happens when someone visits the root URL "/"
+    server.on("/", HTTP_GET, []() {
+        server.send(200, "text/plain", "Hi Cardputer");
+    });
+
+    // 3. Start the server
+    server.begin();
+    MDNS.addService("http", "tcp", 80);
+}
+
+void handleWebUI() {
+    server.handleClient(); // Listen for incoming browser requests
+}
+
+void stopWebUI_Server() {
+    server.stop();
+    MDNS.end();
+    WiFi.disconnect(true);
+    WiFi.mode(WIFI_OFF);
 }

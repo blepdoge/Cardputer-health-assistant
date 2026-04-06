@@ -136,6 +136,19 @@ void drawSettings() {
 
 void drawWiFiScanner() {
     drawStatusBar("Wi-Fi Setup");
+    if (isWebUIRunning) {
+            canvas.setTextDatum(middle_center);
+            canvas.setTextColor(ACCENT_COLOR);
+            canvas.drawString("WebUI is Live!", 120, 50);
+
+            canvas.setTextColor(GOLDEN_YELLOW);
+            canvas.drawString("http://cardputer.local", 120, 75);
+
+            canvas.setTextSize(0.8);
+            canvas.setTextColor(LIGHTGREY);
+            canvas.drawString("Press Backspace to Shutdown", 120, 110);
+            return;
+        }
     // 1. Show Connection message
     if (isConnectingWiFi) {
         canvas.setTextDatum(middle_center);
