@@ -48,6 +48,7 @@ const uint32_t SCREEN_TIMEOUT = 30000;
 
 bool sdReady = false;
 uint32_t lastLogTime = 0;
+int lastLoggedMinute = -1; // Added for synced logging
 uint32_t stepsAtLastLog = 0;
 const uint32_t LOG_INTERVAL = 1200000;
 uint32_t lastImuPoll = 0;
@@ -107,9 +108,24 @@ void loop() {
     }
 
     // 3. 20-Minute CSV Data Logging Timer
-    if (millis() - lastLogTime >= LOG_INTERVAL) {
-        logDataToSD();
-        lastLogTime = millis();
+    struct tm timeinfo;
+    if (getLocalTime(&timeinfo, 0)) { 
+        if (timeinfo.tm_min % 20 == 0) {
+            if (lastLoggedMinute != timeinfo.tm_min) {
+                logDataToSD();
+                lastLoggedMinute = timeinfo.tm_min;
+                
+                if (timeinfo.tm_hour == 0 && timeinfo.tm_min == 0) {
+                    // daily step reset here if needed in the future!
+                }
+            }
+        }
+    } else {
+        // Fallback: If no internet time yet, just log every 20 mins from boot
+        if (millis() - lastLogTime >= LOG_INTERVAL) {
+            logDataToSD();
+            lastLogTime = millis();
+        }
     }
 
     // 4. Handle Keyboard & Screen Wakeup

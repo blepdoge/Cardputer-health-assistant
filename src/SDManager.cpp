@@ -66,8 +66,8 @@ void logDataToSD() {
     struct tm timeinfo;
     String timeString = "00:00";
 
-    // If the clock has been synced, grab the real hours and minutes!
-    if (getLocalTime(&timeinfo)) {
+    // If the clock has been synced, grab the real hours and minutes (0ms timeout to prevent locking)!
+    if (getLocalTime(&timeinfo, 0)) {
         char timeStr[10];
         strftime(timeStr, sizeof(timeStr), "%H:%M", &timeinfo);
         timeString = String(timeStr);
