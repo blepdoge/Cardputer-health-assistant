@@ -40,15 +40,7 @@ float weightKg = 70.0;
 float heightCm = 175.0;
 int dailyGoal = 10000;
 int timezoneOffset = 0; // Default to UTC time
-int activityGraph[72] = {
-  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-  50, 100, 200, 150, 300, 400, 500, 200, 100,
-  0, 0, 50, 0, 0, 20, 10, 0, 0,
-  200, 300, 250, 100, 50, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0,
-  400, 600, 800, 1600, 500, 100, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0
-};
+int activityGraph[72] = {0};
 
 uint32_t lastInteractionTime = 0;
 bool isScreenOn = true;
@@ -126,6 +118,15 @@ void loop() {
             Keyboard_Class::KeysState status = M5Cardputer.Keyboard.keysState();
 
             lastInteractionTime = millis();
+
+            if (!isScreenOn) {
+                M5Cardputer.Display.setBrightness(128); // Force brightness back up
+                isScreenOn = true;
+                needsRedraw = true;
+                // return here if you want the first keypress to only wake the screen
+                return;
+            }
+
             if (isWebUIRunning) {
                 // Intercept keyboard entirely if WebUI is live
                 if (status.del) { // Backspace key
@@ -136,12 +137,6 @@ void loop() {
                     needsRedraw = true;
                 }
                 return; // Stop processing other keys
-            }
-
-            if (!isScreenOn) {
-                M5Cardputer.Display.setBrightness(128); // Force brightness back up
-                isScreenOn = true;
-                needsRedraw = true;
             }
             else if (isEditing) {
                 // --- SETTINGS EDITING LOGIC ---

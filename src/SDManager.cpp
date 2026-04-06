@@ -17,6 +17,7 @@ void setupSD() {
             }
         }
         loadSettings();
+        loadActivityGraph();
     }
 }
 
@@ -55,6 +56,12 @@ void loadSettings() {
 void logDataToSD() {
     if (!sdReady) return;
     uint32_t stepDelta = stepCount - stepsAtLastLog;
+
+    // --- Update the live array so the graph stays current ---
+    for (int i = 0; i < 71; i++) {
+        activityGraph[i] = activityGraph[i+1];
+    }
+    activityGraph[71] = stepDelta;
 
     struct tm timeinfo;
     String timeString = "00:00";
@@ -103,4 +110,35 @@ void saveWiFiNetwork(String ssid, String password) {
         file.printf("%s,%s\n", ssid.c_str(), password.c_str());
         file.close();
     }
+}
+
+void loadActivityGraph() {
+    if (!sdReady) return;
+    if (!SD.exists("/m5_health/data.csv")) return;
+    
+    File file = SD.open("/m5_health/data.csv", FILE_READ);
+    if (!file) return;
+    
+    // Header should be skipped
+    if (file.available()) {
+        file.readStringUntil('\n');
+    }
+    
+    while (file.available()) {
+        String line = file.readStringUntil('\n');
+        line.trim();
+        if (line.length() == 0) continue;
+        
+        int commaIndex = line.indexOf(',');
+        if (commaIndex != -1) {
+            int stepDelta = line.substring(commaIndex + 1).toInt();
+            
+            // Shift elements to the left by 1 and put new element at the end
+            for(int i = 0; i < 71; i++){
+                activityGraph[i] = activityGraph[i+1];
+            }
+            activityGraph[71] = stepDelta;
+        }
+    }
+    file.close();
 }
