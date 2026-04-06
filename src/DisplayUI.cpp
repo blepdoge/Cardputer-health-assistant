@@ -11,6 +11,20 @@ void drawStatusBar(String title) {
     canvas.setTextDatum(middle_left);
     canvas.drawString(" " + title, 0, 10);
 
+    // --- NEW: FETCH & DRAW REAL TIME ---
+    time_t now;
+    time(&now);
+    struct tm timeinfo;
+    localtime_r(&now, &timeinfo); // Non-blocking background time fetch
+
+    // The ESP32 starts in 1970. If the year is > 2020 (tm_year > 120), NTP was successful.
+    if (timeinfo.tm_year > 120) {
+        char timeStr[10];
+        strftime(timeStr, sizeof(timeStr), "%H:%M", &timeinfo);
+        canvas.setTextDatum(middle_center);
+        canvas.drawString(String(timeStr), 120, 10);
+    }
+
     int batLevel = M5.Power.getBatteryLevel();
     canvas.setTextDatum(middle_right);
     canvas.drawString(String(batLevel) + "% ", 240, 10);
@@ -46,7 +60,7 @@ void drawDashboard() {
 }
 
 void drawGraph() {
-    drawStatusBar("Daily activity");
+    drawStatusBar("Activity");
     int graphX = 12; int graphY = 115;
     int barWidth = 3; int spacing = 2;
 
@@ -82,20 +96,25 @@ void drawGraph() {
 
 void drawSettings() {
     drawStatusBar("Settings");
-    String menuItems[4] = {
+
+    // Added the 5th menu item
+    String menuItems[5] = {
         "Daily Goal: " + String(dailyGoal),
         "Height: " + String(heightCm, 1) + " cm",
         "Weight: " + String(weightKg, 1) + " kg",
+        "UTC Offset: " + String(timezoneOffset),
         "Start WebUI Sync"
     };
 
     canvas.setTextSize(1);
     canvas.setTextDatum(middle_left);
 
-    for (int i = 0; i < 4; i++) {
-        int yPos = 40 + (i * 25);
+    // Tweaked the layout math slightly to perfectly fit 5 items
+    for (int i = 0; i < 5; i++) {
+        int yPos = 35 + (i * 21);
+
         if (i == settingsCursor) {
-            canvas.fillRect(5, yPos - 12, 230, 24, ACCENT_COLOR);
+            canvas.fillRect(5, yPos - 11, 230, 22, ACCENT_COLOR);
             canvas.setTextColor(WHITE, ACCENT_COLOR);
         } else {
             canvas.setTextColor(LIGHTGREY, BLACK);
@@ -104,14 +123,14 @@ void drawSettings() {
     }
 
     if (isEditing) {
-        canvas.fillRect(30, 35, 180, 65, DARKGREY);
-        canvas.drawRect(30, 35, 180, 65, WHITE);
+        canvas.fillRect(30, 30, 180, 65, DARKGREY);
+        canvas.drawRect(30, 30, 180, 65, WHITE);
         canvas.setTextColor(WHITE, DARKGREY);
         canvas.setTextDatum(top_center);
-        canvas.drawString("Enter New Value:", 120, 42);
-        canvas.fillRect(40, 60, 160, 25, BLACK);
+        canvas.drawString("Enter New Value:", 120, 37);
+        canvas.fillRect(40, 55, 160, 25, BLACK);
         canvas.setTextDatum(middle_center);
-        canvas.drawString(editBuffer + "_", 120, 72);
+        canvas.drawString(editBuffer + "_", 120, 67);
     }
 }
 

@@ -27,6 +27,7 @@ void saveSettings() {
         file.printf("goal=%d\n", dailyGoal);
         file.printf("height=%.1f\n", heightCm);
         file.printf("weight=%.1f\n", weightKg);
+        file.printf("tz=%d\n", timezoneOffset);
         file.close();
     }
 }
@@ -45,6 +46,7 @@ void loadSettings() {
             if (line.startsWith("goal=")) dailyGoal = line.substring(5).toInt();
             else if (line.startsWith("height=")) heightCm = line.substring(7).toFloat();
             else if (line.startsWith("weight=")) weightKg = line.substring(7).toFloat();
+            else if (line.startsWith("tz=")) timezoneOffset = line.substring(3).toInt();
         }
         file.close();
     }

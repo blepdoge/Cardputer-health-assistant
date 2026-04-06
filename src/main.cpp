@@ -38,6 +38,7 @@ float caloriesBurned = 0.0;
 float weightKg = 70.0;
 float heightCm = 175.0;
 int dailyGoal = 10000;
+int timezoneOffset = 0; // Default to UTC time
 int activityGraph[72] = {
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
   50, 100, 200, 150, 300, 400, 500, 200, 100,
@@ -136,6 +137,7 @@ void loop() {
                     if (settingsCursor == 0) dailyGoal = editBuffer.toInt();
                     else if (settingsCursor == 1) heightCm = editBuffer.toFloat();
                     else if (settingsCursor == 2) weightKg = editBuffer.toFloat();
+                    else if (settingsCursor == 3) timezoneOffset = editBuffer.toInt();
 
                     isEditing = false;
                     updateMetrics();
@@ -143,7 +145,7 @@ void loop() {
                 }
                 else {
                     for (auto key : status.word) {
-                        if (isDigit(key) || key == '.') editBuffer += key;
+                        if (isDigit(key) || key == '.' || key == '-') editBuffer += key;
                     }
                 }
                 needsRedraw = true;
@@ -200,22 +202,22 @@ void loop() {
                     }
                     if (currentPage == 2) {
                         if (key == '.') {
-                            settingsCursor = (settingsCursor + 1) % 4;
+                            settingsCursor = (settingsCursor + 1) % 5;
                             needsRedraw = true;
                         }
                         if (key == ';') {
-                            settingsCursor = (settingsCursor == 0) ? 3 : settingsCursor - 1;
+                            settingsCursor = (settingsCursor == 0) ? 4 : settingsCursor - 1;
                             needsRedraw = true;
                         }
                     }
                 }
 
                 if (status.enter && currentPage == 2) {
-                    if (settingsCursor < 3) {
+                    if (settingsCursor < 4) {
                         isEditing = true;
                         editBuffer = "";
                         needsRedraw = true;
-                    } else if (settingsCursor == 3) {
+                    } else if (settingsCursor == 4) {
                         // Start WebUI clicked!
                         currentPage = 3;
                         isScanningWiFi = true;

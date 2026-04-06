@@ -27,12 +27,11 @@ bool connectToWiFi(String ssid, String password) {
 }
 
 void syncNTP() {
-    // This is the exact POSIX timezone string for France (CET/CEST)
-    configTzTime("CET-1CEST,M3.5.0,M10.5.0/3", "pool.ntp.org", "time.nist.gov");
+    // configTime takes offset in seconds (hours * 3600)
+    configTime(timezoneOffset * 3600, 0, "pool.ntp.org", "time.nist.gov");
 
     struct tm timeinfo;
     int retry = 0;
-    // Wait up to 5 seconds for the NTP server to respond
     while (!getLocalTime(&timeinfo) && retry < 10) {
         delay(500);
         retry++;

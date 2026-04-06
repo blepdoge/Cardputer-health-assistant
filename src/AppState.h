@@ -52,5 +52,7 @@ extern String networkSSIDs[15]; // Store up to 15 networks
 extern bool isConnectingWiFi;
 extern bool isSyncingNTP;
 
+extern int timezoneOffset;
+
 // Shared Functions
 void updateMetrics();
