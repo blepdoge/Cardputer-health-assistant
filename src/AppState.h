@@ -41,5 +41,19 @@ extern uint32_t lastLogTime;
 extern uint32_t stepsAtLastLog;
 extern const uint32_t LOG_INTERVAL;
 
+// Wi-Fi & WebUI States
+extern bool isScanningWiFi;
+extern int wifiCursor;
+extern int selectedNetworkIndex;
+extern String wifiPasswordBuffer;
+extern bool isEnteringWiFiPassword;
+extern int networkCount;
+extern String networkSSIDs[15]; // Store up to 15 networks
+extern bool isConnectingWiFi;
+extern bool isSyncingNTP;
+
+extern int timezoneOffset;
+extern bool isWebUIRunning;
+
 // Shared Functions
 void updateMetrics();
