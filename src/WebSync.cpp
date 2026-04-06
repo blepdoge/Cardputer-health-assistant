@@ -1,9 +1,12 @@
 #include "WebSync.h"
 #include "AppState.h"
+#include "SDManager.h"   // To trigger saveSettings()
+#include "WebUI.h"  // Our baked-in website
 #include <WiFi.h>
 #include <time.h>
 #include <WebServer.h>
 #include <ESPmDNS.h>
+#include <SD.h>          // To read the CSV
 
 WebServer server(80);
 
@@ -22,7 +25,6 @@ bool connectToWiFi(String ssid, String password) {
     WiFi.begin(ssid.c_str(), password.c_str());
 
     int attempts = 0;
-    // Wait up to 10 seconds for connection
     while (WiFi.status() != WL_CONNECTED && attempts < 20) {
         delay(500);
         attempts++;
@@ -31,9 +33,7 @@ bool connectToWiFi(String ssid, String password) {
 }
 
 void syncNTP() {
-    // configTime takes offset in seconds (hours * 3600)
     configTime(timezoneOffset * 3600, 0, "pool.ntp.org", "time.nist.gov");
-
     struct tm timeinfo;
     int retry = 0;
     while (!getLocalTime(&timeinfo) && retry < 10) {
@@ -42,24 +42,69 @@ void syncNTP() {
     }
 }
 
+// --- WEB SERVER ENDPOINTS ---
+
+void handleRoot() {
+    // Serve the main HTML page
+    server.send(200, "text/html", index_html);
+}
+
+void handleGetSettings() {
+    // Build a JSON response with the live variables
+    String json = "{";
+    json += "\"ssid\":\"" + networkSSIDs[selectedNetworkIndex] + "\",";
+    json += "\"goal\":" + String(dailyGoal) + ",";
+    json += "\"height\":" + String(heightCm, 1) + ",";
+    json += "\"weight\":" + String(weightKg, 1) + ",";
+    json += "\"tz\":" + String(timezoneOffset);
+    json += "}";
+    server.send(200, "application/json", json);
+}
+
+void handlePostSettings() {
+    // Update variables from the submitted HTML form
+    if (server.hasArg("goal")) dailyGoal = server.arg("goal").toInt();
+    if (server.hasArg("height")) heightCm = server.arg("height").toFloat();
+    if (server.hasArg("weight")) weightKg = server.arg("weight").toFloat();
+    if (server.hasArg("tz")) timezoneOffset = server.arg("tz").toInt();
+
+    updateMetrics();
+    saveSettings();     // Save them to the SD card!
+    needsRedraw = true; // Flag the UI to update when we exit the WebUI
+
+    server.send(200, "text/plain", "Settings Updated Successfully");
+}
+
+void handleGetCSV() {
+    // Stream the data log directly from the SD card to the browser!
+    if (!sdReady || !SD.exists("/m5_health/data.csv")) {
+        server.send(404, "text/plain", "No data found");
+        return;
+    }
+    File file = SD.open("/m5_health/data.csv", FILE_READ);
+    server.streamFile(file, "text/csv");
+    file.close();
+}
+
+// --- SERVER LIFECYCLE ---
+
 void startWebUI_Server() {
-    // 1. Start the mDNS responder for "cardputer.local"
     if (!MDNS.begin("cardputer")) {
         Serial.println("Error setting up MDNS responder!");
     }
 
-    // 2. Define what happens when someone visits the root URL "/"
-    server.on("/", HTTP_GET, []() {
-        server.send(200, "text/plain", "Hi Cardputer");
-    });
+    // Attach endpoints to functions
+    server.on("/", HTTP_GET, handleRoot);
+    server.on("/api/settings", HTTP_GET, handleGetSettings);
+    server.on("/api/settings", HTTP_POST, handlePostSettings);
+    server.on("/api/data.csv", HTTP_GET, handleGetCSV);
 
-    // 3. Start the server
     server.begin();
     MDNS.addService("http", "tcp", 80);
 }
 
 void handleWebUI() {
-    server.handleClient(); // Listen for incoming browser requests
+    server.handleClient();
 }
 
 void stopWebUI_Server() {
